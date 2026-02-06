@@ -37,13 +37,15 @@ def calculate_priority_score(priority, days_until_due):
     base_score = scores[priority]
     bonus = 0
     
-    if days_until_due <= 0:
-        # Critical priority gets 50, others get 30 to match test expectations
-        bonus = 50 if priority == "critical" else 30
-    elif days_until_due <= 3:
-        bonus = 20
-    elif days_until_due <= 7:
-        bonus = 10
+    # Only apply urgency bonus if due_date is provided
+    if days_until_due is not None:
+        if days_until_due < 0:
+            # Critical priority gets 50, others get 30 to match test expectations
+            bonus = 50 if priority == "critical" else 30
+        elif days_until_due < 3:
+            bonus = 20
+        elif days_until_due < 7:
+            bonus = 10
         
     return base_score + bonus
 
