@@ -12,11 +12,14 @@ def validate_email(email: str) -> bool:
     """
     Validate email format.
     Returns True if valid, False otherwise.
-
-    BUG #1: This regex is too permissive - it accepts invalid emails
     """
-    # This pattern has a bug - can you find it?
-    pattern = r".+@.+"
+    if not email:
+        return False
+    # Proper RFC 5322 compliant email pattern
+    # - No spaces allowed
+    # - No special HTML characters like < > allowed
+    # - Must have valid local part, @ symbol, and domain with TLD
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return bool(re.match(pattern, email))
 
 
@@ -36,8 +39,6 @@ def calculate_priority_score(priority: str, days_until_due: int) -> int:
     - Due today (0 days): +30
     - Due within 3 days: +20
     - Due within 7 days: +10
-
-    BUG #2: There's an off-by-one error and missing case
     """
     priority_weights = {
         "critical": 100,
@@ -46,17 +47,20 @@ def calculate_priority_score(priority: str, days_until_due: int) -> int:
         "low": 25
     }
 
-    # Bug: What if priority is not in the dict?
+    # Handle invalid priority values gracefully
+    if priority not in priority_weights:
+        raise ValueError(f"Invalid priority: {priority}. Must be one of: {list(priority_weights.keys())}")
+
     base_score = priority_weights[priority]
 
-    # Bug: Off-by-one error in the conditions
+    # Fixed off-by-one errors: use <= instead of <
     if days_until_due < 0:
         urgency_bonus = 50
     elif days_until_due == 0:
         urgency_bonus = 30
-    elif days_until_due < 3:  # Should be <= 3
+    elif days_until_due <= 3:
         urgency_bonus = 20
-    elif days_until_due < 7:  # Should be <= 7
+    elif days_until_due <= 7:
         urgency_bonus = 10
     else:
         urgency_bonus = 0
@@ -67,16 +71,30 @@ def calculate_priority_score(priority: str, days_until_due: int) -> int:
 def sanitize_input(text: str) -> str:
     """
     Sanitize user input to prevent XSS attacks.
-
-    BUG #3: This function is dangerously incomplete!
-    It only handles a few cases and misses critical ones.
+    Removes dangerous HTML tags, event handlers, and javascript URLs.
     """
     if not text:
         return ""
 
-    # This is NOT sufficient sanitization!
-    sanitized = text.replace("<script>", "")
-    sanitized = sanitized.replace("</script>", "")
+    sanitized = text
+
+    # Remove script tags (case-insensitive)
+    sanitized = re.sub(r'<script[^>]*>.*?</script>', '', sanitized, flags=re.IGNORECASE | re.DOTALL)
+    sanitized = re.sub(r'<script[^>]*>', '', sanitized, flags=re.IGNORECASE)
+    sanitized = re.sub(r'</script>', '', sanitized, flags=re.IGNORECASE)
+
+    # Remove event handlers (onclick, onerror, onload, etc.)
+    sanitized = re.sub(r'\s*on\w+\s*=\s*["\'][^"\']*["\']', '', sanitized, flags=re.IGNORECASE)
+    sanitized = re.sub(r'\s*on\w+\s*=\s*[^\s>]+', '', sanitized, flags=re.IGNORECASE)
+
+    # Remove javascript: URLs
+    sanitized = re.sub(r'javascript\s*:', '', sanitized, flags=re.IGNORECASE)
+
+    # Remove dangerous tags entirely
+    dangerous_tags = ['img', 'iframe', 'object', 'embed', 'link', 'style', 'meta']
+    for tag in dangerous_tags:
+        sanitized = re.sub(rf'<{tag}[^>]*>', '', sanitized, flags=re.IGNORECASE)
+        sanitized = re.sub(rf'</{tag}>', '', sanitized, flags=re.IGNORECASE)
 
     return sanitized
 
@@ -84,11 +102,15 @@ def sanitize_input(text: str) -> str:
 def parse_date(date_string: str) -> datetime:
     """
     Parse a date string in format YYYY-MM-DD.
-
-    BUG #4: No error handling for invalid dates
+    Raises ValueError for invalid or improperly formatted dates.
     """
-    # What happens if the format is wrong?
-    return datetime.strptime(date_string, "%Y-%m-%d")
+    if not date_string:
+        raise ValueError("Date string cannot be empty")
+
+    try:
+        return datetime.strptime(date_string, "%Y-%m-%d")
+    except ValueError as e:
+        raise ValueError(f"Invalid date format: '{date_string}'. Expected format: YYYY-MM-DD") from e
 
 
 def get_days_until_due(due_date_str: str) -> int:
