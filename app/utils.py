@@ -1,10 +1,11 @@
 # app/utils.py
 """
 Utility functions for the task management API.
-WARNING: This file contains bugs that need to be found and fixed!
+Bugs have been fixed as part of the assessment.
 """
 
 import re
+import html
 from datetime import datetime
 
 
@@ -13,10 +14,13 @@ def validate_email(email: str) -> bool:
     Validate email format.
     Returns True if valid, False otherwise.
 
-    BUG #1: This regex is too permissive - it accepts invalid emails
+    FIX #1: Updated regex to properly validate email format
+    - Requires valid characters before @
+    - Requires domain with at least one dot
+    - No spaces or special HTML characters allowed
     """
-    # This pattern has a bug - can you find it?
-    pattern = r".+@.+"
+    # Fixed pattern: requires proper format with domain and TLD
+    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
     return bool(re.match(pattern, email))
 
 
@@ -37,7 +41,7 @@ def calculate_priority_score(priority: str, days_until_due: int) -> int:
     - Due within 3 days: +20
     - Due within 7 days: +10
 
-    BUG #2: There's an off-by-one error and missing case
+    FIX #2: Fixed off-by-one error and added ValueError for invalid priority
     """
     priority_weights = {
         "critical": 100,
@@ -46,17 +50,19 @@ def calculate_priority_score(priority: str, days_until_due: int) -> int:
         "low": 25
     }
 
-    # Bug: What if priority is not in the dict?
-    base_score = priority_weights[priority]
+    # FIX #2a: Handle invalid priority gracefully with ValueError
+    base_score = priority_weights.get(priority)
+    if base_score is None:
+        raise ValueError(f"Invalid priority: {priority}. Must be one of: {', '.join(priority_weights.keys())}")
 
-    # Bug: Off-by-one error in the conditions
+    # FIX #2b: Fixed off-by-one errors with <= instead of <
     if days_until_due < 0:
         urgency_bonus = 50
     elif days_until_due == 0:
         urgency_bonus = 30
-    elif days_until_due < 3:  # Should be <= 3
+    elif days_until_due <= 3:  # Fixed: was < 3
         urgency_bonus = 20
-    elif days_until_due < 7:  # Should be <= 7
+    elif days_until_due <= 7:  # Fixed: was < 7
         urgency_bonus = 10
     else:
         urgency_bonus = 0
@@ -68,15 +74,27 @@ def sanitize_input(text: str) -> str:
     """
     Sanitize user input to prevent XSS attacks.
 
-    BUG #3: This function is dangerously incomplete!
-    It only handles a few cases and misses critical ones.
+    FIX #3: Strip all HTML tags and dangerous content
+    - Removes script tags AND their content
+    - Removes all other HTML tags (including attributes like onerror, onclick)
+    - Removes javascript: URLs
+    - Handles case variations
     """
+    # FIX #3a: Handle None input
+    if text is None:
+        return ""
+    
     if not text:
         return ""
 
-    # This is NOT sufficient sanitization!
-    sanitized = text.replace("<script>", "")
-    sanitized = sanitized.replace("</script>", "")
+    # FIX #3b: Remove script tags AND their content (handles case variations)
+    sanitized = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.IGNORECASE | re.DOTALL)
+    
+    # FIX #3c: Remove all remaining HTML tags (handles case sensitivity, attributes, etc.)
+    sanitized = re.sub(r'<[^>]*>', '', sanitized, flags=re.IGNORECASE)
+    
+    # FIX #3d: Remove javascript: URLs
+    sanitized = re.sub(r'javascript:', '', sanitized, flags=re.IGNORECASE)
 
     return sanitized
 
@@ -85,10 +103,18 @@ def parse_date(date_string: str) -> datetime:
     """
     Parse a date string in format YYYY-MM-DD.
 
-    BUG #4: No error handling for invalid dates
+    FIX #4: Added proper error handling for invalid dates
+    Raises ValueError with clear message for invalid input.
     """
-    # What happens if the format is wrong?
-    return datetime.strptime(date_string, "%Y-%m-%d")
+    # FIX #4a: Handle empty string
+    if not date_string:
+        raise ValueError("Date string cannot be empty")
+    
+    # FIX #4b: Wrap in try/except to provide clear error message
+    try:
+        return datetime.strptime(date_string, "%Y-%m-%d")
+    except ValueError:
+        raise ValueError(f"Invalid date format: '{date_string}'. Expected YYYY-MM-DD")
 
 
 def get_days_until_due(due_date_str: str) -> int:
