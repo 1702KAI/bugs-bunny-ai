@@ -12,32 +12,26 @@ def validate_email(email: str) -> bool:
     """
     Validate email format.
     Returns True if valid, False otherwise.
-
-    BUG #1: This regex is too permissive - it accepts invalid emails
     """
-    # This pattern has a bug - can you find it?
-    pattern = r".+@.+"
+    if not isinstance(email, str) or not email:
+        return False
+
+    # Reject spaces and obvious injection-like characters
+    if any(ch.isspace() for ch in email):
+        return False
+    if "<" in email or ">" in email:
+        return False
+
+    # Basic but stricter email regex for tests
+    pattern = r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$"
     return bool(re.match(pattern, email))
+
 
 
 def calculate_priority_score(priority: str, days_until_due: int) -> int:
     """
     Calculate a numeric priority score for sorting tasks.
     Higher score = more urgent.
-
-    Priority weights:
-    - critical: 100
-    - high: 75
-    - medium: 50
-    - low: 25
-
-    Days until due modifier:
-    - Overdue (negative days): +50
-    - Due today (0 days): +30
-    - Due within 3 days: +20
-    - Due within 7 days: +10
-
-    BUG #2: There's an off-by-one error and missing case
     """
     priority_weights = {
         "critical": 100,
@@ -46,17 +40,23 @@ def calculate_priority_score(priority: str, days_until_due: int) -> int:
         "low": 25
     }
 
-    # Bug: What if priority is not in the dict?
-    base_score = priority_weights[priority]
+    if not isinstance(priority, str):
+        raise ValueError("Invalid priority")
 
-    # Bug: Off-by-one error in the conditions
+    priority_key = priority.lower().strip()
+    if priority_key not in priority_weights:
+        raise ValueError("Invalid priority")
+
+    base_score = priority_weights[priority_key]
+
+    # Fix off-by-one: <= 3 and <= 7
     if days_until_due < 0:
         urgency_bonus = 50
     elif days_until_due == 0:
         urgency_bonus = 30
-    elif days_until_due < 3:  # Should be <= 3
+    elif days_until_due <= 3:
         urgency_bonus = 20
-    elif days_until_due < 7:  # Should be <= 7
+    elif days_until_due <= 7:
         urgency_bonus = 10
     else:
         urgency_bonus = 0
@@ -64,19 +64,24 @@ def calculate_priority_score(priority: str, days_until_due: int) -> int:
     return base_score + urgency_bonus
 
 
+
 def sanitize_input(text: str) -> str:
     """
-    Sanitize user input to prevent XSS attacks.
-
-    BUG #3: This function is dangerously incomplete!
-    It only handles a few cases and misses critical ones.
+    Sanitize user input to reduce XSS vectors.
     """
-    if not text:
+    if text is None:
         return ""
+    if not isinstance(text, str):
+        text = str(text)
 
-    # This is NOT sufficient sanitization!
-    sanitized = text.replace("<script>", "")
-    sanitized = sanitized.replace("</script>", "")
+    # Remove script blocks (case-insensitive)
+    sanitized = re.sub(r"(?is)<\s*script[^>]*>.*?<\s*/\s*script\s*>", "", text)
+
+    # Remove common inline event handlers like onerror=, onclick= etc.
+    sanitized = re.sub(r'(?i)\son\w+\s*=\s*(".*?"|\'.*?\'|[^\s>]+)', "", sanitized)
+
+    # Remove javascript: URLs (case-insensitive)
+    sanitized = re.sub(r'(?i)javascript\s*:', "", sanitized)
 
     return sanitized
 
