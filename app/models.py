@@ -2,6 +2,16 @@
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Optional
+from enum import Enum
+
+
+class Priority(Enum):
+    """Priority levels for tasks."""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
 
 @dataclass
 class User:
@@ -23,7 +33,7 @@ class Task:
     title: str
     description: str
     user_email: str
-    priority: str  # "low", "medium", "high", "critical"
+    priority: Priority
     status: str = "pending"  # "pending", "in_progress", "completed"
     due_date: Optional[str] = None
     created_at: datetime = field(default_factory=datetime.now)
@@ -34,8 +44,9 @@ class Task:
             "title": self.title,
             "description": self.description,
             "user_email": self.user_email,
-            "priority": self.priority,
+            "priority": self.priority.value,  # Return string value for JSON
             "status": self.status,
             "due_date": self.due_date,
             "created_at": self.created_at.isoformat()
         }
+

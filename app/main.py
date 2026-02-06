@@ -1,7 +1,7 @@
 # app/main.py
 # Aaron Emmanuel - 6/2/2026
 from flask import Flask, request, jsonify
-from app.models import User, Task
+from app.models import User, Task, Priority
 from app.utils import validate_email, calculate_priority_score, sanitize_input
 
 app = Flask(__name__)
@@ -57,8 +57,8 @@ def get_user(email):
 # TASK 2: ADD YOUR NEW ENDPOINT BELOW
 # ============================================
 
-# Valid priority values
-VALID_PRIORITIES = {"low", "medium", "high", "critical"}
+# Valid priority values from Priority enum
+VALID_PRIORITIES = {p.value for p in Priority}
 
 
 @app.route("/tasks", methods=["POST"])
@@ -111,13 +111,13 @@ def create_task():
     task_counter += 1
     task_id = task_counter
     
-    # Create task
+    # Create task with Priority enum
     task = Task(
         id=task_id,
         title=title,
         description=description,
         user_email=user_email,
-        priority=priority,
+        priority=Priority(priority),  # Convert string to Priority enum
         due_date=due_date
     )
     tasks[task_id] = task
