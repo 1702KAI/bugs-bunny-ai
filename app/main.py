@@ -1,4 +1,7 @@
 # app/main.py
+# Name: Fathima Sarah
+# Date: 2026-02-06
+
 from flask import Flask, request, jsonify
 from app.models import User, Task
 from app.utils import validate_email, calculate_priority_score, sanitize_input
