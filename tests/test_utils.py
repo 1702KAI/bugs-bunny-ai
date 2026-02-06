@@ -11,7 +11,6 @@ from app.utils import (
     calculate_priority_score,
     sanitize_input,
     parse_date,
-    get_days_until_due
 )
 
 
